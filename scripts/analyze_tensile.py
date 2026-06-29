@@ -79,32 +79,61 @@ def operation_x(filepath):
 def operation_v(filepath):
     """
     Elongation at break (断裂伸长率):
-    Find the first row i where strain[i+1] - strain[i] is negative AND
-    represents a rapid decrease (>4 sigma below rolling mean of 20 diffs).
-    Falls back to the final strain value if no anomalous drop detected.
+    Detect fracture by locating the first CATASTROPHIC stress drop after the
+    peak stress, then return the strain value just before that drop.
+
+    Algorithm:
+    1. Locate max stress row
+    2. Compute stress-diff baseline from pre-peak region
+    3. Scan forward from the peak: find the first diff that is BOTH
+       statistically anomalous AND exceeds the absolute drop threshold
+    4. Return the strain at the row just before that drop
     """
-    WINDOW = 20
-    K = 4.0
+    WINDOW = 30       # rows before peak to establish stress-diff baseline
+    K = 6.0           # sigma threshold
+    MIN_DROP = -1.0   # absolute minimum stress drop (MPa) to count as fracture
 
     headers = get_csv_headers(filepath)
-    col = find_col_index(headers, "拉伸应变")
-    if col is None:
+    stress_col = find_col_index(headers, "拉伸应力")
+    strain_col = find_col_index(headers, "拉伸应变")
+    if stress_col is None or strain_col is None:
+        print(f"  WARNING: '拉伸应力' or '拉伸应变' column not found")
         return None
-    values = read_csv_values(filepath, col)
-    if len(values) < WINDOW + 2:
-        return values[-1] if values else None
 
-    diffs = [values[i + 1] - values[i] for i in range(len(values) - 1)]
+    stress_vals = read_csv_values(filepath, stress_col)
+    strain_vals = read_csv_values(filepath, strain_col)
+    if len(stress_vals) < WINDOW + 2:
+        return strain_vals[-1] if strain_vals else None
 
-    for i in range(WINDOW, len(diffs)):
-        window = diffs[i - WINDOW:i]
-        mean = statistics.mean(window)
-        stdev = statistics.stdev(window) if len(window) >= 2 else 0.0001
-        threshold = mean - K * stdev
-        if diffs[i] < 0 and diffs[i] < threshold:
-            return values[i]
+    # Find peak stress position
+    max_idx = max(range(len(stress_vals)), key=lambda i: stress_vals[i])
 
-    return values[-1] if values else None
+    # Baseline: stress diffs from a window before the peak
+    baseline_start = max(0, max_idx - WINDOW)
+    baseline_diffs = [
+        stress_vals[i + 1] - stress_vals[i]
+        for i in range(baseline_start, max_idx - 1)
+    ]
+    if len(baseline_diffs) < 3:
+        return strain_vals[max_idx]
+
+    baseline_mean = statistics.mean(baseline_diffs)
+    baseline_std = statistics.stdev(baseline_diffs)
+    threshold = baseline_mean - K * baseline_std
+    print(f"  [V] baseline mean_diff={baseline_mean:.4f} std={baseline_std:.4f} "
+          f"threshold={threshold:.4f} | min_abs_drop={MIN_DROP}")
+
+    # Scan forward from the peak for a catastrophic drop
+    for i in range(max_idx, len(stress_vals) - 1):
+        diff = stress_vals[i + 1] - stress_vals[i]
+        if diff < threshold and diff < MIN_DROP:
+            print(f"  [V] Fracture at row {i + 3}: "
+                  f"stress_diff={diff:.2f} < {threshold:.2f} AND < {MIN_DROP}")
+            return strain_vals[i]
+
+    # Fallback: no catastrophic drop found, use strain at peak stress
+    print(f"  [V] No catastrophic drop found; using strain at peak stress")
+    return strain_vals[max_idx]
 
 
 # ---- File scanning ----
