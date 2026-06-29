@@ -169,7 +169,7 @@ def remove_outliers(values):
     Only applied when there are >= 4 values; smaller sets are returned as-is.
     Returns (cleaned_values, removed_indices).
     """
-    if len(values) < 4:
+    if len(values) < 3:
         return values, []
 
     sorted_v = sorted(values)
