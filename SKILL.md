@@ -1,6 +1,6 @@
 ---
 name: instron-tensile-analysis
-description: This skill should be used when the user asks to process Instron tensile test data, extract mechanical properties from .is_tens_Exports export folders, calculate 抗拉强度 (tensile strength) or 断裂伸长率 (elongation at break), batch process foil tensile test CSV files, or create a 力学性能 summary spreadsheet. Use this whenever the user mentions Instron tensile testing, 拉伸试验, 力学性能, 拉伸应力, 拉伸应变, 箔材拉伸, or wants to process material testing .is_tens_Exports export data.
+description: 力学性能分析专用 skill。当用户提到"力学性能分析"、"力学性能"、"拉伸数据分析"、"抗拉强度"、"断裂伸长率"、".is_tens_Exports"、或需要处理 Instron 拉伸试验机导出的箔材拉伸数据时，必须使用此 skill。
 ---
 
 # Instron 箔材拉伸数据分析
