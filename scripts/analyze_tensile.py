@@ -165,28 +165,34 @@ def scan_dirs(folder):
 
 def remove_outliers(values):
     """
-    Remove outliers using the 1.5*IQR rule.
-    Only applied when there are >= 4 values; smaller sets are returned as-is.
+    Detect outliers using median absolute deviation.
+    For n >= 3: flag any value whose absolute deviation from the median
+    exceeds 25% of the median. At most one value is removed per call.
+    For n < 3: no removal (too few points).
     Returns (cleaned_values, removed_indices).
     """
     if len(values) < 3:
         return values, []
 
-    sorted_v = sorted(values)
-    n = len(sorted_v)
-    q1 = sorted_v[n // 4]
-    q3 = sorted_v[(3 * n) // 4]
-    iqr = q3 - q1
-    lower = q1 - 1.5 * iqr
-    upper = q3 + 1.5 * iqr
+    median = statistics.median(values)
+    threshold = 0.30 * abs(median) if median != 0 else 0.01
 
-    cleaned = []
-    removed = []
+    # Find all values exceeding the threshold
+    suspect = []
     for i, v in enumerate(values):
-        if lower <= v <= upper:
-            cleaned.append(v)
-        else:
-            removed.append((i, v))
+        dev = abs(v - median)
+        if dev > threshold:
+            suspect.append((i, v, dev))
+
+    if not suspect:
+        return values, []
+
+    # Remove only the single most deviant value
+    suspect.sort(key=lambda x: x[2], reverse=True)
+    worst_idx, worst_val, _ = suspect[0]
+
+    cleaned = [v for i, v in enumerate(values) if i != worst_idx]
+    removed = [(worst_idx, worst_val)]
     return cleaned, removed
 
 
